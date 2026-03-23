@@ -8,42 +8,42 @@ st.set_page_config(
 )
 
 st.title("Research Assistant Agent")
-st.caption("Nhap cau hoi bat ky - agent se tu tim kiem web va tong hop bao cao")
+st.caption(" Hỏi tự do - Trả lời mình lo !!")
 
 st.markdown("---")
 
 question = st.text_input(
-    label="cau hoi",
-    placeholder="Vi du: Vector database la gi?",
+    label=" Điều cậu muốn biết ",
+    placeholder="Vi du: Manchester United là vô đối phải không? ",
     label_visibility="collapsed"
 )
 
 col1, col2, col3 = st.columns([1, 1, 4])
 with col1:
-    run_btn = st.button("Nghien cuu", type="primary", use_container_width=True)
+    run_btn = st.button("Let's go bro", type="primary", use_container_width=True)
 with col2:
-    clear_btn = st.button("Xoa", use_container_width=True)
+    clear_btn = st.button("Tẩy não !", use_container_width=True)
 
 if clear_btn:
     st.rerun()
 
 if run_btn and question:
     st.markdown("---")
-    with st.spinner("Agent dang lam viec... vui long cho 20-30 giay"):
+    with st.spinner("Đợi một tí vì tớ miễn phí ...."):
         report = run_agent(question)
-    st.success("Hoan thanh!")
+    st.success("Tìm ra rồi nha!")
     st.markdown("---")
-    st.subheader("Bao cao")
+    st.subheader("Final Answer ")
     st.markdown(report)
     st.markdown("---")
     st.download_button(
-        label="Tai bao cao",
+        label="Save answer",
         data=report,
         file_name="report.txt",
         mime="text/plain"
     )
 elif run_btn and not question:
-    st.warning("Vui long nhap cau hoi!")
+    st.warning("Hỏi đi ngại chi !")
 
 st.markdown("---")
-st.caption("Built with Groq - Tavily - Streamlit")
+st.caption("Không đúng - không trách - không tốn tiền !!!")
