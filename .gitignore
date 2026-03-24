@@ -5,3 +5,5 @@ venv311/
 __pycache__/
 *.pyc
 .idea/
+chroma_db/
+.streamlit/secrets.toml
