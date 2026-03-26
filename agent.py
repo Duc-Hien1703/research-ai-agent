@@ -1,8 +1,9 @@
 import os
 import json
+import sys
 from groq import Groq
 from dotenv import load_dotenv
-from tools import TOOLS, TOOL_SCHEMAS
+from mcp_client import run_mcp_tool, get_tool_schemas
 from memory import save_memory, search_memory
 
 load_dotenv()
@@ -19,26 +20,20 @@ SYSTEM_PROMPT = """You are a Research Assistant with memory of past conversation
 1. Search for information using web_search tool
 2. Read important sources using read_url tool
 3. Synthesize a clear report with citations
-4. If relevant past memories are provided, use them to give better context
+4. If relevant past memories are provided, use them for better context
 
 Always search at least 2-3 sources before writing the final answer.
 Write the final report in Vietnamese.
 IMPORTANT: Always use English keywords when calling web_search tool."""
 
 
-def process_tool_call(tool_name: str, tool_input: dict) -> str:
-    print(f"  [Tool] Goi: {tool_name}({tool_input})")
-    if tool_name in TOOLS:
-        return TOOLS[tool_name](**tool_input)
-    return f"Loi: Khong tim thay tool '{tool_name}'"
-
-
 def run_agent(user_question: str, chat_history: list = None) -> str:
 
-    # Tìm memory liên quan từ các phiên TRƯỚC
-    past_memories = search_memory(user_question, n_results=3)
+    # Lấy tool schemas từ MCP Server
+    TOOL_SCHEMAS = get_tool_schemas()
 
-    # Xây dựng context từ memory cũ
+    # Tìm memory liên quan
+    past_memories = search_memory(user_question, n_results=3)
     memory_context = ""
     if past_memories:
         memory_context = "\n\n--- RELEVANT PAST CONVERSATIONS ---\n"
@@ -46,24 +41,19 @@ def run_agent(user_question: str, chat_history: list = None) -> str:
             memory_context += f"Q: {mem['question']}\n"
             memory_context += f"A: {mem['answer'][:200]}...\n\n"
 
-    # Ghép memory vào system prompt
     full_system = SYSTEM_PROMPT + memory_context
 
-    # Xây dựng messages
     messages = []
-
-    # Thêm lịch sử session hiện tại (cách 1)
     if chat_history:
         for msg in chat_history[-6:]:
             messages.append({
                 "role": msg["role"],
                 "content": msg["content"][:500] if msg["role"] == "assistant" else msg["content"]
             })
-
     messages.append({"role": "user", "content": user_question})
 
     loop_count = 0
-    max_loops = 15
+    max_loops = 10
 
     while loop_count < max_loops:
         loop_count += 1
@@ -90,10 +80,7 @@ def run_agent(user_question: str, chat_history: list = None) -> str:
         if not msg.tool_calls:
             print("\n[Agent] Hoan thanh!")
             final_answer = msg.content
-
-            # Lưu vào long-term memory sau khi trả lời xong
             save_memory(user_question, final_answer)
-
             return final_answer
 
         print(f"[Agent] Muon dung {len(msg.tool_calls)} tool(s)")
@@ -117,7 +104,11 @@ def run_agent(user_question: str, chat_history: list = None) -> str:
         for tool_call in msg.tool_calls:
             tool_name = tool_call.function.name
             tool_input = json.loads(tool_call.function.arguments)
-            result = process_tool_call(tool_name, tool_input)
+
+
+            sys.stderr.write(f"  [MCP] Goi tool: {tool_name}\n")
+            result = run_mcp_tool(tool_name, tool_input)
+
             messages.append({
                 "role": "tool",
                 "tool_call_id": tool_call.id,
